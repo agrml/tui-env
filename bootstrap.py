@@ -6,7 +6,12 @@
 Your current dotfiles will be moved here or will be deleted.
 You'll get symlinks to that repo files instead of them.
 
+Under the term of file we mean file a general (not only regular files)
+
 """
+
+import parse
+
 import collections
 import subprocess
 from typing import *
@@ -126,55 +131,98 @@ class DotfilesSyncer:
     class Strategy(Enum):
         OverwriteRemote = 1
         OverwriteLocal = 2
+        # `extend` and `force` should also differ.
+        # But it's unclear what should `extend`, so we implement `force` for overwriting remote
+        # and `extend` for overwriting local: if file doesn't exist in repo, it will be kept in system
+
+        # step 0. We support only copying from a fully customized working Ubuntu
+        # and bootstrapping only a new Ubuntu (we overwrite if it happens, but we dont delete manually)
 
     def __init__(self):
-        self.paths = '''.zsh .oh-my-zsh
+        self.dotfiles = '''.oh-my-zsh/custom
                      .zshrc .zshrc_general .zshrc_oh-my-zsh .zsh_history
                      .gitconfig .gitignore_global
-                     .vim .viminfo .vimrc'''
-        self.paths = ["~/" + name for name in self.paths.split()]
-        self.repoDefaultPath = "~/dotfiles"
-        self.backupLocal = "~/dotfilesBackup"
+                     .vim .viminfo .vimrc'''.split()
+        self.dotfiles = [Path(dotfile) for dotfile in self.dotfiles]
+        self.repo_default_path = "~/dotfiles"
+        self.backup_local = "~/dotfilesBackupLocal"
+        self.backup_remote = "~/dotfilesBackupRemote"
 
     def __call__(self):
-        self.repo = input("Path to a git repo where dotfiles will be stored [{}]: ".format(self.repoDefaultPath))
+        self.repo = input("Path to a git repo where dotfiles will be stored [{}]: ".format(self.repo_default_path))
         if self.repo.strip() == "":
-            self.repo = self.repoDefaultPath
+            self.repo = self.repo_default_path
         self.repo = os.path.expanduser(self.repo)
         if not os.path.isdir(self.repo):
             print("Invalid path. Aborting...")
             return
+
         option = input("[1] OverwriteLocal\n[2] OverwriteRemote\n> ").strip()
         if option == "1":
-            strategy = DotfilesSyncer.Strategy.OverwriteLocal
+            self.git_pull()
+            self.get_remotes()
         elif option == "2":
-            strategy = DotfilesSyncer.Strategy.OverwriteRemote
+            self.export_locals()
+            self.git_push()
         else:
             return
-        self.make_links(strategy)
 
-    def make_links(self, strategy: Strategy):
-        """~/{} -> symlink to ~/dotfiles/{}"""
+    def export_locals(self):
+        for dotfile in self.dotfiles:
+            if not os.path.exists(dotfile.home.full):
+                continue
+            if dotfile.internal != '':
+                Command('mkdir -p {}'.format(dotfile.repo.full_to_parent))()
+            Command('mv {} {}'.format(dotfile.home.full,
+                                      dotfile.repo.full_to_parent))()
+            Command('ln -s {} {}'.format(dotfile.repo.full,
+                                          dotfile.home.full_to_parent))()
+
+    def get_remotes(self):
+        for dotfile in self.dotfiles:
+            if not os.path.exists(dotfile.repo.full):
+                continue
+            if os.path.exists(dotfile.home.full):
+                # TODO: "-p"
+                Command('mv {} {}'.format(dotfile.home.full, self.backup_local))()
+            Command('ln -s {} {}'.format(dotfile.repo.full,
+                                          dotfile.home.full_to_parent))()
+
+    def git_push(self):
+        Command(
+            'cd {} && git add -A && git commit -m "iter" && git push origin master'.format(
+                self.repo))()
+
+    def git_pull(self):
         Command('cd {} && git pull origin master'.format(self.repo))()
-        for path in self.paths:
-            # Command('rm -rf {}'.format(self.dotfilesBackupDir))()
-            # Command('mv -f {} {}'.format(self.dotfilesDir, self.dotfilesBackupDir))()
-            path_in_repo = self.repo + "/" + self.path_to_name(path)
-            if strategy == self.Strategy.OverwriteRemote:
-                # TODO: some merge here. Add clean up?
-                Command('mv {} {}'.format(path, self.repo))()
-            else:
-                Command('mv {} {}'.format(path, self.backupLocal))()
-                # TODO: support merge
-            Command('ln -s {} {}'.format(path_in_repo, path))()
-        if strategy == DotfilesSyncer.Strategy.OverwriteRemote:
-            Command('cd {} && git add -A && git commit -m "iter" && git push origin master'.format(self.repo))()
-        else:
-            print('You can install zsh fonts using "Bootstrap" option')
 
     @staticmethod
     def path_to_name(path):
         return path.strip('/').split('/')[-1]
+
+
+class Path:
+    class Helper:
+        def __init__(self):
+            self.full = ''
+            self.full_to_parent = ''
+
+    def __init__(self, path: str):
+        self.home = self.Helper()
+        self.repo = self.Helper()
+        self.home.full = os.path.expanduser('~/' + path)
+        self.repo.full = os.path.expanduser('~/dotfiles/' + path)
+        if '/' in path:
+            reversed_paths = parse.parse('{}/{}', path[::-1])
+            self.internal = reversed_paths[1][::-1]
+            self.fname = reversed_paths[0][::-1]
+            self.home.full_to_parent = os.path.expanduser('~/{}'.format(self.internal))
+            self.repo.full_to_parent = os.path.expanduser('~/dotfiles/{}'.format(self.internal))
+        else:
+            self.internal = ''
+            self.fname = path
+            self.home.full_to_parent = os.path.expanduser('~')
+            self.repo.full_to_parent = os.path.expanduser('~/dotfiles')
 
 
 def main():
