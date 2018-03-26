@@ -155,20 +155,22 @@ class DotfilesSyncer:
 
     def make_links(self, strategy: Strategy):
         """~/{} -> symlink to ~/dotfiles/{}"""
-        # Command('cd {} && git pull origin master'.format(self.repo))()
+        Command('cd {} && git pull origin master'.format(self.repo))()
         for path in self.paths:
             # Command('rm -rf {}'.format(self.dotfilesBackupDir))()
             # Command('mv -f {} {}'.format(self.dotfilesDir, self.dotfilesBackupDir))()
             path_in_repo = self.repo + "/" + self.path_to_name(path)
             if strategy == self.Strategy.OverwriteRemote:
+                # TODO: some merge here. Add clean up?
                 Command('mv {} {}'.format(path, self.repo))()
             else:
                 Command('mv {} {}'.format(path, self.backupLocal))()
                 # TODO: support merge
             Command('ln -s {} {}'.format(path_in_repo, path))()
-            # repository had been killed
-        Command('cd {} && git add -A && git commit -m "iter" && git push origin master'.format(self.repo))()
-        print('You can install zsh fonts using "Bootstrap" option')
+        if strategy == DotfilesSyncer.Strategy.OverwriteRemote:
+            Command('cd {} && git add -A && git commit -m "iter" && git push origin master'.format(self.repo))()
+        else:
+            print('You can install zsh fonts using "Bootstrap" option')
 
     @staticmethod
     def path_to_name(path):
