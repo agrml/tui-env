@@ -13,6 +13,7 @@ from typing import *
 from enum import Enum
 import os
 
+mode = "debug"
 
 
 class Prompt:
@@ -33,8 +34,8 @@ class Prompt:
         print("===Entering {}...===".format(self.name_))
         print(self.greeting_)
         for num, option in enumerate(self.options_):
-            print("[{}] {}".format(num, option[0]))
-        idx = int(input("> "))
+            print("[{}] {}".format(num + 1, option[0]))
+        idx = int(input("> ")) - 1
         cmd = self.options_[idx][1]
         if isinstance(cmd, collections.Iterable):
             [item() for item in cmd]
@@ -126,47 +127,58 @@ class DotfilesSyncer:
         OverwriteRemote = 1
         OverwriteLocal = 2
 
-    def __init__(self, repo: str):
-        """
-        :param repo: git repo has to be created manually
-        """
-        self.paths = '''.zsh
+    def __init__(self):
+        self.paths = '''.zsh .oh-my-zsh
                      .zshrc .zshrc_general .zshrc_oh-my-zsh .zsh_history
-                     .gitconfig .gitignore_global'''
+                     .gitconfig .gitignore_global
+                     .vim .viminfo .vimrc'''
         self.paths = ["~/" + name for name in self.paths.split()]
-        self.repo = repo
-        assert(os.path.isdir(self.repo))
+        self.repoDefaultPath = "~/dotfiles"
         self.backupLocal = "~/dotfilesBackup"
 
     def __call__(self):
-        pass
+        self.repo = input("Path to a git repo where dotfiles will be stored [{}]: ".format(self.repoDefaultPath))
+        if self.repo.strip() == "":
+            self.repo = self.repoDefaultPath
+        self.repo = os.path.expanduser(self.repo)
+        if not os.path.isdir(self.repo):
+            print("Invalid path. Aborting...")
+            return
+        option = input("[1] OverwriteLocal\n[2] OverwriteRemote\n> ").strip()
+        if option == "1":
+            strategy = DotfilesSyncer.Strategy.OverwriteLocal
+        elif option == "2":
+            strategy = DotfilesSyncer.Strategy.OverwriteRemote
+        else:
+            return
+        self.make_links(strategy)
 
     def make_links(self, strategy: Strategy):
         """~/{} -> symlink to ~/dotfiles/{}"""
-
+        # Command('cd {} && git pull origin master'.format(self.repo))()
         for path in self.paths:
             # Command('rm -rf {}'.format(self.dotfilesBackupDir))()
             # Command('mv -f {} {}'.format(self.dotfilesDir, self.dotfilesBackupDir))()
-            path_in_repo = self.repo + self.path_to_name(path)
+            path_in_repo = self.repo + "/" + self.path_to_name(path)
             if strategy == self.Strategy.OverwriteRemote:
                 Command('mv {} {}'.format(path, self.repo))()
             else:
                 Command('mv {} {}'.format(path, self.backupLocal))()
                 # TODO: support merge
-            Command('ln -s {} {}'.format(path, path_in_repo))()
+            Command('ln -s {} {}'.format(path_in_repo, path))()
             # repository had been killed
-            Command('cd {} && git add * && git add *.* && git ')()
-        print('You can install zsh fonts using "Bootstrap..." option')
+        Command('cd {} && git add -A && git commit -m "iter" && git push origin master'.format(self.repo))()
+        print('You can install zsh fonts using "Bootstrap" option')
 
-    def path_to_name(self, path):
+    @staticmethod
+    def path_to_name(path):
         return path.strip('/').split('/')[-1]
 
 
 def main():
-    repo = "~/dotfiles"
     prompt = Prompt("Main prompt",
                     ("Bootstrap a new machine", Installer()),
-                    ("Sync dotfiles", DotfilesSyncer(repo)))
+                    ("Sync dotfiles", DotfilesSyncer()))
     prompt()
 
 
