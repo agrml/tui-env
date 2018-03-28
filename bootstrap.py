@@ -101,15 +101,19 @@ class Installer:
                     "Installing optional tui staff..."),
                 Command("sudo npm install -g tldr --user=$(whoami)",
                     "Installing mann..."),
-                # Command('git config --global user.email "0516480@gmail.com" && git config --global user.name "Mikhail Agranovskiy"',
-                #     "Seting up git credentials..."),
                 Command('sudo apt install zsh ttf-ancient-fonts curl && chsh -s $(which zsh)',
                         'Installing zsh and fonts...',
                         '''Note: you need to install powerline fonts manually
-                         Hint: https://github.com/powerline/fonts'''))
+                         Hint: https://github.com/powerline/fonts'''),
+                Command('sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"',
+                    'Installing oh-my-zsh'))
 
     def get_gui_installer(self):
-        return (Command("sudo apt install clipit meld mpv virtual-box unity-tweak-tool gnome-tweak-tool unrar p7zip-full"
+        return (Command("wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -"
+                "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list"
+                "sudo apt update && sudo apt install google-chrome-stable",
+                        "Installing chrome..."),
+                Command("sudo apt install clipit meld mpv virtual-box unity-tweak-tool gnome-tweak-tool unrar p7zip-full"
                         "tilix", "Installing base pack..."),
                 Command("sudo apt install wireshark traceroute mtr iperf nmap mininet",
                                      "Installing networking staff..."),
@@ -139,6 +143,7 @@ class DotfilesSyncer:
         # and bootstrapping only a new Ubuntu (we overwrite if it happens, but we dont delete manually)
 
     def __init__(self):
+        # TODO: test oh-my-zsh/...
         self.dotfiles = '''.oh-my-zsh/custom
                      .zshrc .zshrc_general .zshrc_oh-my-zsh .zsh_history
                      .gitconfig .gitignore_global
@@ -195,10 +200,6 @@ class DotfilesSyncer:
 
     def git_pull(self):
         Command('cd {} && git pull origin master'.format(self.repo))()
-
-    @staticmethod
-    def path_to_name(path):
-        return path.strip('/').split('/')[-1]
 
 
 class Path:
