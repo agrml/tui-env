@@ -11,14 +11,18 @@ Under the term of file we mean file a general (not only regular files)
 """
 
 import parse
+import tempfile
 
 import collections
 import subprocess
 from typing import *
 from enum import Enum
 import os
+import sys
 
-mode = "debug"
+MODE = "debug"
+REPO_DEFAULT_PATH = os.path.expanduser("~/dotfiles")
+USER_INSTALL_DIR = os.path.expanduser("~/soft")
 
 
 class Prompt:
@@ -36,8 +40,9 @@ class Prompt:
         self.options_.append((description, callback))
 
     def __call__(self):
-        print("===Entering {}...===".format(self.name_))
-        print(self.greeting_)
+        if self.name_ != "":
+            print("===Entering {}...===".format(self.name_))
+            print(self.greeting_)
         for num, option in enumerate(self.options_):
             print("[{}] {}".format(num + 1, option[0]))
         idx = int(input("> ")) - 1
@@ -46,7 +51,8 @@ class Prompt:
             [item() for item in cmd]
         else:
             cmd()
-        print("===...leaving {}===".format(self.name_))
+        if self.name_ != "":
+            print("===...leaving {}===".format(self.name_))
 
 
 class Command:
@@ -75,12 +81,21 @@ class Command:
             print(self.postprint_)
 
 
+class Reminder:
+    def __init__(self, note: str):
+        self.note_ = note
+
+    def __call__(self):
+        print("Note: {}".format(self.note_))
+
+
 class Installer:
     def __init__(self):
         self.prompt = Prompt("UI chooser",
                              ("Bootstrap TUI", self.get_tui_prompt()),
                              ("Bootstrap GUI", self.get_gui_prompt()),
                              ("Perform hooks", self.get_hooks_prompt()))
+        self.user_install_dir = USER_INSTALL_DIR
 
     def __call__(self):
         self.prompt()
@@ -92,43 +107,68 @@ class Installer:
     def get_gui_prompt(self):
         return Prompt("GUI installer",
                       ("Install full GUI set", self.get_gui_installer()),
+                      ("Install a JetBrains IDE", self.get_jb_installer()),
                       ("Remove trash software", self.get_gui_cleaner()))
 
     def get_tui_installer(self):
-        return (Command("sudo apt install curl wget tree ranger htop  vim python-pip python3-pip npm git screen",
-                    "Installing tui staff..."),
+        return (Command("sudo apt install curl wget tree ranger htop vim python-pip python3-pip npm git screen",
+                    "Installing basic tui staff..."),
                 Command("sudo apt install pdfgrep trash-cli",
                     "Installing optional tui staff..."),
                 Command("sudo npm install -g tldr --user=$(whoami)",
                     "Installing mann..."),
-                Command('sudo apt install zsh ttf-ancient-fonts curl && chsh -s $(which zsh)',
-                        'Installing zsh and fonts...',
-                        '''Note: you need to install powerline fonts manually
-                         Hint: https://github.com/powerline/fonts'''),
+                Command('sudo apt install zsh fonts-powerline && chsh -s $(which zsh)',
+                        'Installing zsh and fonts...'),
+                # FIXME: err nearby token (
                 Command('sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"',
-                    'Installing oh-my-zsh'))
+                    'Installing oh-my-zsh')
+                )
 
     def get_gui_installer(self):
         return (Command("wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -"
                 "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list"
                 "sudo apt update && sudo apt install google-chrome-stable",
-                        "Installing chrome..."),
-                Command("sudo apt install clipit meld mpv virtual-box unity-tweak-tool gnome-tweak-tool unrar p7zip-full"
-                        "tilix", "Installing base pack..."),
+                        "Installing chrome...",
+                        "Setup scrolling plugin: look at ./hints/chrome-scrolling.jpg"),
+                Reminder("Install dropbox manually: https://www.dropbox.com/install"),
+                Command("sudo apt-add-repository ppa:webupd8team/terminix && sudo apt update && "
+                        "sudo apt install gksu clipit meld mpv virtual-box tilix",
+                        "Installing basic gui staff..."),
                 Command("sudo apt install wireshark traceroute mtr iperf nmap mininet",
                                      "Installing networking staff..."),
-                Command("sudo apt install gimp audacity nautilus-actions system-config-samba blueman" +
-                        "sudo apt install samba && sudo touch /etc/libuser.conf",
+                Command("sudo apt install unity-tweak-tool gnome-tweak-tool unrar p7zip-full "
+                        "gimp audacity nautilus-actions samba system-config-samba blueman && "
+                        "sudo touch /etc/libuser.conf",
                         "Installing multimedia/laptop stuff..."))
 
     def get_gui_cleaner(self):
-        return Command("sudo apt purge gedit imagemagick transmission-gtk transmission-common "
-                                       "gnome-orca aisleriot brasero gnome-mahjongg gnome-mines gnome-sudoku xdiagnose",
+        return Command("sudo apt purge imagemagick gnome-orca aisleriot brasero gnome-mahjongg gnome-mines gnome-sudoku xdiagnose",
                                        "Wiping Ubuntu's rubbish out...")
 
     def get_hooks_prompt(self):
         return Prompt("Hooks maker",
                       ("Enable X-forwarding in from WSL", Command("echo 'export DISPLAY=127.0.0.1:0' >> ~/.zshrc_local")))
+
+    def get_jb_installer(self):
+        def functor():
+            link = input("Link or full local path to .tar.gz (e.g. https://download.jetbrains.com/python/pycharm-professional-2017.3.4.tar.gz)\n: ").strip()
+            archive_name = link.split('/')[-1]
+            install_dir = input("Install dir [{}]: ".format(self.user_install_dir)).strip()
+            if install_dir.strip() == "":
+                install_dir = self.user_install_dir
+            if link.startswith("http"):
+                download_dir = tempfile.TemporaryDirectory()
+                os.system('cd {} && wget {}'.format(download_dir.name, link))
+                archive_path = '{}/{}'.format(download_dir.name, archive_name)
+            else:
+                archive_path = link
+            ide_dir = '{}/{}'.format(install_dir, parse.parse('{}.tar.gz', archive_name)[0])
+            if os.system('tar -xzf {} -C {}'.format(archive_path, install_dir)):
+                print("Unable to extact", file=sys.stderr)
+                return
+            print("""Make sure your settings are bootstrapped or you use settings-sync plugin.
+Afterwards launch ide with {}/bin/<ide-name>.sh""".format(ide_dir))
+        return functor
 
 
 class DotfilesSyncer:
@@ -152,25 +192,20 @@ class DotfilesSyncer:
         self.repo_default_path = "~/dotfiles"
         self.backup_local = "~/dotfilesBackupLocal"
         self.backup_remote = "~/dotfilesBackupRemote"
+        self.repo = None
 
     def __call__(self):
-        self.repo = input("Path to a git repo where dotfiles will be stored [{}]: ".format(self.repo_default_path))
+        self.repo = input("Path to a git repo where dotfiles will be stored [{}]: ".format(REPO_DEFAULT_PATH)).strip()
         if self.repo.strip() == "":
-            self.repo = self.repo_default_path
+            self.repo = REPO_DEFAULT_PATH
         self.repo = os.path.expanduser(self.repo)
         if not os.path.isdir(self.repo):
             print("Invalid path. Aborting...")
             return
-
-        option = input("[1] OverwriteLocal\n[2] OverwriteRemote\n> ").strip()
-        if option == "1":
-            self.git_pull()
-            self.get_remotes()
-        elif option == "2":
-            self.export_locals()
-            self.git_push()
-        else:
-            return
+        Prompt("",
+               ("Overwrite local", lambda: self.git_pull(), self.get_remotes()),
+               ("Overwrite remote", lambda: self.export_locals(), self.git_push())
+              )()
 
     def export_locals(self):
         for dotfile in self.dotfiles:
