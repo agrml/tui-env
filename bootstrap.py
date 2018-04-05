@@ -52,10 +52,12 @@ class Installer:
                       ("Remove trash software", self.get_gui_cleaner()))
 
     def get_tui_installer(self):
-        return (Command("sudo apt install curl wget tree ranger htop vim python-pip python3-pip npm git screen",
+        return (Command("sudo apt install curl wget tree ranger htop vim python-pip python3-pip npm git screen multitail neofetch",
                     "Installing basic tui staff..."),
                 Command("sudo apt install pdfgrep trash-cli",
                     "Installing optional tui staff..."),
+                Command('sudo npm cache clean -f && sudo npm install -g n && sudo n stable',
+                        'Updating npm...'),
                 Command("sudo npm install -g tldr --user=$(whoami)",
                     "Installing mann..."),
                 Command('sudo apt install zsh fonts-powerline && chsh -s $(which zsh)',
