@@ -130,7 +130,8 @@ class DotfilesSyncer:
         self.dotfiles = '''.oh-my-zsh/custom
                      .zshrc .zshrc_general .zshrc_oh-my-zsh .zsh_history
                      .gitconfig .gitignore_global
-                     .vim .viminfo .vimrc'''.split()
+                     .vim .viminfo .vimrc
+                     soft/scripts'''.split()
         self.dotfiles = [Path(dotfile) for dotfile in self.dotfiles]
         self.repo_default_path = "~/dotfiles"
         self.backup_local = "~/dotfilesBackupLocal"
@@ -138,7 +139,21 @@ class DotfilesSyncer:
         self.repo = None
 
     def __call__(self):
-        self.repo = input("Path to a git repo where dotfiles will be stored [{}]: ".format(REPO_DEFAULT_PATH)).strip()
+        def overwrite_local():
+            if not self.git_pull():
+                print('Repo needs to be stashed. Exiting...')
+                return
+            self.register_remotes()
+
+        def overwrite_remote():
+            # TODO: what if remote has commits we don't have?
+            # we need sort of merge.
+            # First of all, we have to pull before committing. But we need keep our changes safe. So where should we pull?
+            # Maybe we should stash and launch user-driven merge on unstashing.
+            self.export_locals()
+            self.git_push()
+
+        self.repo = input("Path to a git repo for dotfiles [{}]: ".format(REPO_DEFAULT_PATH)).strip()
         if self.repo.strip() == "":
             self.repo = REPO_DEFAULT_PATH
         self.repo = os.path.expanduser(self.repo)
@@ -146,41 +161,55 @@ class DotfilesSyncer:
             print("Invalid path. Aborting...")
             return
         Prompt("",
-               ("Overwrite local", lambda: self.git_pull(), self.get_remotes()),
-               ("Overwrite remote", lambda: self.export_locals(), self.git_push())
+               ("Overwrite local", overwrite_local),
+               ("Overwrite remote", overwrite_remote)
               )()
 
     def export_locals(self):
         for dotfile in self.dotfiles:
-            if not os.path.exists(dotfile.home.full):
+            if not os.path.exists(dotfile.home_location.full):
+                continue
+            if os.path.islink(dotfile.home_location.full):
+                # file could be already moved to repo on previous run
                 continue
             if dotfile.internal != '':
-                Command('mkdir -p {}'.format(dotfile.repo.full_to_parent))()
-            Command('mv {} {}'.format(dotfile.home.full,
-                                      dotfile.repo.full_to_parent))()
-            Command('ln -s {} {}'.format(dotfile.repo.full,
-                                          dotfile.home.full_to_parent))()
-
-    def get_remotes(self):
-        for dotfile in self.dotfiles:
-            if not os.path.exists(dotfile.repo.full):
+                Command('mkdir -p {}'.format(dotfile.repo_location.full_to_parent))()
+            if dotfile.fname == '.zsh_history':
+                if state['first_run']:
+                    Command('cp {} {}'.format(dotfile.home_location.full,
+                                              dotfile.repo_location.full_to_parent))()
                 continue
-            if os.path.exists(dotfile.home.full):
+            Command('mv {} {}'.format(dotfile.home_location.full,
+                                      dotfile.repo_location.full_to_parent))()
+            Command('ln -s {} {}'.format(dotfile.repo_location.full,
+                                         dotfile.home_location.full_to_parent))()
+
+    def register_remotes(self):
+        for dotfile in self.dotfiles:
+            if not os.path.exists(dotfile.repo_location.full):
+                continue
+            if dotfile.fname == '.zsh_history':
+                if state['first_run']:
+                    Command('cp {} {}'.format(dotfile.repo_location.full,
+                                                 dotfile.home_location.full_to_parent))()
+                continue
+            if os.path.exists(dotfile.home_location.full):
                 # TODO: "-p"
-                Command('mv {} {}'.format(dotfile.home.full, self.backup_local))()
-            Command('ln -s {} {}'.format(dotfile.repo.full,
-                                          dotfile.home.full_to_parent))()
+                Command('mv {} {}'.format(dotfile.home_location.full, self.backup_local))()
+            Command('ln -s {} {}'.format(dotfile.repo_location.full,
+                                         dotfile.home_location.full_to_parent))()
 
     def git_push(self):
-        Command(
-            'cd {} && git add -A && git commit -m "iter" && git push origin master'.format(
+        return Command('cd {} && git add -A && git commit -m "iter" && git push origin master'.format(
                 self.repo))()
 
     def git_pull(self):
-        Command('cd {} && git pull origin master'.format(self.repo))()
+        return Command('cd {} && git pull origin master'.format(self.repo))()
 
 
 def main():
+    if state['first_run'] and 'n' in input('Please check ignoring for .git in your dotfiles repo [Enter]: '):
+        return
     prompt = Prompt("Main prompt",
                     ("Bootstrap a new machine", Installer()),
                     ("Sync dotfiles", DotfilesSyncer()))
@@ -189,3 +218,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    state.flush()

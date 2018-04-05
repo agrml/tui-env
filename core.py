@@ -19,28 +19,28 @@ class Path:
             self.full_to_parent = ''
 
     def __init__(self, path: str):
-        self.home = self.Helper()
-        self.repo = self.Helper()
-        self.home.full = os.path.expanduser('~/' + path)
-        self.repo.full = os.path.expanduser('~/dotfiles/' + path)
+        self.home_location = self.Helper()
+        self.repo_location = self.Helper()
+        self.home_location.full = os.path.expanduser('~/' + path)
+        self.repo_location.full = os.path.expanduser('~/dotfiles/' + path)
         if '/' in path:
             reversed_paths = parse.parse('{}/{}', path[::-1])
             self.internal = reversed_paths[1][::-1]
             self.fname = reversed_paths[0][::-1]
-            self.home.full_to_parent = os.path.expanduser('~/{}'.format(self.internal))
-            self.repo.full_to_parent = os.path.expanduser('~/dotfiles/{}'.format(self.internal))
+            self.home_location.full_to_parent = os.path.expanduser('~/{}'.format(self.internal))
+            self.repo_location.full_to_parent = os.path.expanduser('~/dotfiles/{}'.format(self.internal))
         else:
             self.internal = ''
             self.fname = path
-            self.home.full_to_parent = os.path.expanduser('~')
-            self.repo.full_to_parent = os.path.expanduser('~/dotfiles')
+            self.home_location.full_to_parent = os.path.expanduser('~')
+            self.repo_location.full_to_parent = os.path.expanduser('~/dotfiles')
 
 
 class State:
     def __init__(self, config_file_name: str):
         self.path = '{}/{}'.format(appdirs.user_config_dir(PROJECT_NAME), config_file_name)
         if not os.path.exists(self.path):
-            default_config = {'first_call': True}
+            default_config = {'first_run': True}
             self.config = default_config
         else:
             with open(self.path, 'r') as f:
@@ -52,9 +52,10 @@ class State:
     def __setitem__(self, key, value):
         self.config[key] = value
 
-    def __del__(self):
-        if not os.path.exists(self.path):
-            os.makedirs(os.path.dirname(self.path))
+    def flush(self):
+        dirname = os.path.dirname(self.path)
+        if not os.path.exists(dirname):
+            os.makedirs(dirname)
         with open(self.path, 'w') as f:
             json.dump(self.config, f)
 
