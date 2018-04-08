@@ -53,7 +53,12 @@ class Installer(metaclass=Singleton):
                         'Installing zsh and fonts...'),
                 # FIXME: err nearby token (
                 Command('sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"',
-                    'Installing oh-my-zsh')
+                    'Installing oh-my-zsh'),
+                Command('sudo apt-get install apt-transport-https ca-certificates curl software-properties-common && '
+                        'curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add - && '
+                        'sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" && '
+                        'sudo apt-get update; sudo apt-get install docker-ce',
+                        'Installing Docker...')
                 )
 
     def get_gui_installer(self):
@@ -64,7 +69,7 @@ class Installer(metaclass=Singleton):
                         "Setup scrolling plugin: look at ./hints/chrome-scrolling.jpg"),
                 Reminder("Install dropbox manually: https://www.dropbox.com/install"),
                 Command("sudo apt-add-repository ppa:webupd8team/terminix && sudo apt update && "
-                        "sudo apt install gksu clipit meld mpv virtual-box tilix",
+                        "sudo apt install gksu tilix clipit meld mpv virtual-box",
                         "Installing basic gui staff..."),
                 Command("sudo apt install wireshark traceroute mtr iperf nmap mininet",
                                      "Installing networking staff..."),
