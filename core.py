@@ -2,7 +2,6 @@ import appdirs
 import parse
 
 import os
-import json
 import subprocess
 from enum import Enum
 from typing import *
@@ -34,30 +33,6 @@ class Path:
             self.fname = path
             self.home_location.full_to_parent = os.path.expanduser('~')
             self.repo_location.full_to_parent = os.path.expanduser('~/dotfiles')
-
-
-class State:
-    def __init__(self, config_file_name: str):
-        self.path = '{}/{}'.format(appdirs.user_config_dir(PROJECT_NAME), config_file_name)
-        if not os.path.exists(self.path):
-            default_config = {'first_run': True}
-            self.config = default_config
-        else:
-            with open(self.path, 'r') as f:
-                self.config = json.load(f)
-
-    def __getitem__(self, item):
-        return self.config[item]
-
-    def __setitem__(self, key, value):
-        self.config[key] = value
-
-    def flush(self):
-        dirname = os.path.dirname(self.path)
-        if not os.path.exists(dirname):
-            os.makedirs(dirname)
-        with open(self.path, 'w') as f:
-            json.dump(self.config, f)
 
 
 class Command:
