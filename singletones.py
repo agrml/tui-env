@@ -145,8 +145,7 @@ class DotfilesSynchronizer(metaclass=Singleton):
 
     def __call__(self):
         def overwrite_local():
-            if not self.git_pull():
-                print('Repo needs to be stashed. Exiting...')
+            if not self.git_pull() and 'y' not in input('Repo seems needing to be stashed. Continue anyway? [N/y]: '):
                 return
             self.register_remotes()
 
