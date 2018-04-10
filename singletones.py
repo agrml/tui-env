@@ -1,4 +1,4 @@
-from glob_vars import *
+from global_variables import *
 from core import *
 
 import parse
@@ -129,17 +129,20 @@ class DotfilesSynchronizer(metaclass=Singleton):
                      .vim .viminfo .vimrc
                      soft/scripts'''.split()
         self.dotfiles = [Path(dotfile) for dotfile in self.dotfiles]
-        self.repo_default_path = "~/dotfiles"
+        self.dconfs = [Dconf("/com/gexperts/Tilix/")]
         self.backup_local = "~/dotfilesBackupLocal"
         self.backup_remote = "~/dotfilesBackupRemote"
         self.repo = None
         self.state = State()
 
     def set_repo(self):
-        self.repo = input("Path to a git repo for dotfiles [{}]: ".format(REPO_DEFAULT_PATH)).strip()
+        self.repo = REPO_DEFAULT_PATH
+        print("Path to a git repo for dotfiles is set to [{}]: ".format(self.repo))
         if self.repo.strip() == "":
             self.repo = REPO_DEFAULT_PATH
         self.repo = os.path.expanduser(self.repo)
+        Path.repo_location = self.repo
+        Dconf.repo_location = self.repo
         if not os.path.isdir(self.repo):
             print("Invalid path. Aborting...")
             return
@@ -183,6 +186,8 @@ class DotfilesSynchronizer(metaclass=Singleton):
                                       dotfile.repo_location.full_to_parent))()
             Command('ln -s {} {}'.format(dotfile.repo_location.full,
                                          dotfile.home_location.full_to_parent))()
+        for dconf in self.dconfs:
+            dconf.dump()
 
     def register_remotes(self):
         for dotfile in self.dotfiles:
@@ -199,6 +204,8 @@ class DotfilesSynchronizer(metaclass=Singleton):
             # FIXME: links `soft/scripts` to `~` with name `soft`
             Command('ln -s {} {}'.format(dotfile.repo_location.full,
                                          dotfile.home_location.full_to_parent))()
+        for dconf in self.dconfs:
+            dconf.load()
 
     def git_push(self):
         if self.repo is None:

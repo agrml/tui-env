@@ -1,3 +1,5 @@
+from global_variables import *
+
 import appdirs
 import parse
 
@@ -8,31 +10,47 @@ from typing import *
 import collections
 
 
-PROJECT_NAME = 'tui_env'
-
-
 class Path:
     class Helper:
         def __init__(self):
             self.full = ''
             self.full_to_parent = ''
 
+    repo_location = REPO_DEFAULT_PATH
+
     def __init__(self, path: str):
         self.home_location = self.Helper()
         self.repo_location = self.Helper()
         self.home_location.full = os.path.expanduser('~/' + path)
-        self.repo_location.full = os.path.expanduser('~/dotfiles/' + path)
+        self.repo_location.full = os.path.expanduser('{}/{}'.format(Path.repo_location, path))
         if '/' in path:
             reversed_paths = parse.parse('{}/{}', path[::-1])
             self.internal = reversed_paths[1][::-1]
             self.fname = reversed_paths[0][::-1]
             self.home_location.full_to_parent = os.path.expanduser('~/{}'.format(self.internal))
-            self.repo_location.full_to_parent = os.path.expanduser('~/dotfiles/{}'.format(self.internal))
+            self.repo_location.full_to_parent = os.path.expanduser('{}/{}'.format(Path.repo_location, self.internal))
         else:
             self.internal = ''
             self.fname = path
             self.home_location.full_to_parent = os.path.expanduser('~')
-            self.repo_location.full_to_parent = os.path.expanduser('~/dotfiles')
+            self.repo_location.full_to_parent = os.path.expanduser(Path.repo_location)
+
+
+class Dconf:
+    repo_location = REPO_DEFAULT_PATH
+
+    def __init__(self, dconf_path: str):
+        self.dconf_path = dconf_path
+        self.in_repo_path = '{}/{}/{}.dconf'.format(Dconf.repo_location, DCONF_REPO_DIR, dconf_path.replace('/', '-'))
+
+    def dump(self):
+        Command('dconf dump {} > {}'.format(self.dconf_path, self.in_repo_path))
+
+    def load(self):
+        if not os.path.exists(self.in_repo_path):
+            Exception('Unable to read file from path {}'.format(self.in_repo_path))
+        Command('dconf load {} < {}'.format(self.dconf_path, self.in_repo_path),
+                'Overwriting dconf entry...')
 
 
 class Command:
@@ -75,6 +93,7 @@ class Prompt:
     name -- name of the prompt
     *args -- ((option name, option)). An option have to be another prompt or an action.
     """
+
     def __init__(self, name: str, *args: Tuple[str, Callable or Tuple], greeting="Choose a mode:"):
         self.name_ = name
         self.greeting_ = greeting
