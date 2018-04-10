@@ -42,7 +42,8 @@ class Installer(metaclass=Singleton):
                       ("Remove trash software", self.get_gui_cleaner()))
 
     def get_tui_installer(self):
-        return (Command("sudo apt install curl wget tree ranger htop vim python-pip python3-pip npm git screen multitail neofetch",
+        return (Command("sudo add-apt-repository ppa:dawidd0811/neofetch && sudo apt update && "
+                "sudo apt install curl wget tree ranger htop vim python-pip python3-pip npm git screen multitail neofetch",
                     "Installing basic tui staff..."),
                 Command("sudo apt install pdfgrep trash-cli",
                     "Installing optional tui staff..."),
@@ -63,9 +64,9 @@ class Installer(metaclass=Singleton):
                 )
 
     def get_gui_installer(self):
-        return (Command("wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -"
-                "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list"
-                "sudo apt update && sudo apt install google-chrome-stable",
+        return (Command("wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add - && "
+                "echo 'deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee /etc/apt/sources.list.d/google-chrome.list &&"
+                "sudo apt update; sudo apt install google-chrome-stable",
                         "Installing chrome...",
                         "Setup scrolling plugin: look at ./hints/chrome-scrolling.jpg"),
                 Reminder("Install dropbox manually: https://www.dropbox.com/install"),
@@ -195,6 +196,7 @@ class DotfilesSynchronizer(metaclass=Singleton):
             if os.path.exists(dotfile.home_location.full):
                 # TODO: "-p"
                 Command('mv {} {}'.format(dotfile.home_location.full, self.backup_local))()
+            # FIXME: links `soft/scripts` to `~` with name `soft`
             Command('ln -s {} {}'.format(dotfile.repo_location.full,
                                          dotfile.home_location.full_to_parent))()
 

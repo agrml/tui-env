@@ -27,7 +27,7 @@ def main():
     if state['first_run'] and 'n' in input('Please check ignoring for .git in your dotfiles repo [Enter]: '):
         return
     prompt = Prompt("Main prompt",
-                    ("Bootstrap a new machine", Installer()),
+                    ("Install soft", Installer()),
                     ("Sync dotfiles", DotfilesSynchronizer()))
     prompt()
     state.flush()
