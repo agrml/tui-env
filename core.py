@@ -44,13 +44,13 @@ class Dconf:
         self.in_repo_path = '{}/{}/{}.dconf'.format(Dconf.repo_location, DCONF_REPO_DIR, dconf_path.replace('/', '-'))
 
     def dump(self):
-        Command('dconf dump {} > {}'.format(self.dconf_path, self.in_repo_path))
+        Command('dconf dump {} > {}'.format(self.dconf_path, self.in_repo_path))()
 
     def load(self):
         if not os.path.exists(self.in_repo_path):
             Exception('Unable to read file from path {}'.format(self.in_repo_path))
         Command('dconf load {} < {}'.format(self.dconf_path, self.in_repo_path),
-                'Overwriting dconf entry...')
+                'Overwriting dconf entry...')()
 
 
 class Command:
