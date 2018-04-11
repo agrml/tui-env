@@ -41,9 +41,12 @@ class Dconf:
 
     def __init__(self, dconf_path: str):
         self.dconf_path = dconf_path
-        self.in_repo_path = '{}/{}/{}.dconf'.format(Dconf.repo_location, DCONF_REPO_DIR, dconf_path.replace('/', '-'))
+        self.in_repo_dconf_dir = '{}/{}'.format(Dconf.repo_location, DCONF_REPO_DIR)
+        self.in_repo_path = '{}/{}.dconf'.format(self.in_repo_dconf_dir, dconf_path.replace('/', '-'))
 
     def dump(self):
+        if not os.path.exists(self.in_repo_dconf_dir):
+            os.mkdir(self.in_repo_dconf_dir)
         Command('dconf dump {} > {}'.format(self.dconf_path, self.in_repo_path))()
 
     def load(self):
