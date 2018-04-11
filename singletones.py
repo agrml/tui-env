@@ -129,7 +129,7 @@ class DotfilesSynchronizer(metaclass=Singleton):
         self.dotfiles = '''.oh-my-zsh/custom
                      .zshrc .zshrc_general .zshrc_oh-my-zsh .zsh_history
                      .gitconfig .gitignore_global
-                     .vim .viminfo .vimrc
+                     .vim .vimrc
                      soft/scripts'''
         self.dotfiles = toPaths(self.dotfiles)
         self.dconfs = [Dconf("/com/gexperts/Tilix/")]
