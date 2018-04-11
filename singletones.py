@@ -130,6 +130,8 @@ class DotfilesSynchronizer(metaclass=Singleton):
                      .zshrc .zshrc_general .zshrc_oh-my-zsh .zsh_history
                      .gitconfig .gitignore_global
                      .vim .vimrc
+                     .config/nautilus
+                     .config/ranger
                      soft/scripts'''
         self.dotfiles = toPaths(self.dotfiles)
         self.dconfs = [Dconf("/com/gexperts/Tilix/")]
