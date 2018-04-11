@@ -123,12 +123,15 @@ class DotfilesSynchronizer(metaclass=Singleton):
 
     def __init__(self):
         # TODO: test oh-my-zsh/...
+        def toPaths(s: str):
+            return [Path(dotfile) for dotfile in s.split()]
+
         self.dotfiles = '''.oh-my-zsh/custom
                      .zshrc .zshrc_general .zshrc_oh-my-zsh .zsh_history
                      .gitconfig .gitignore_global
                      .vim .viminfo .vimrc
-                     soft/scripts'''.split()
-        self.dotfiles = [Path(dotfile) for dotfile in self.dotfiles]
+                     soft/scripts'''
+        self.dotfiles = toPaths(self.dotfiles)
         self.dconfs = [Dconf("/com/gexperts/Tilix/")]
         self.backup_local = "~/dotfilesBackupLocal"
         self.backup_remote = "~/dotfilesBackupRemote"
