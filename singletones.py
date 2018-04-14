@@ -204,6 +204,8 @@ class DotfilesSynchronizer(metaclass=Singleton):
             # FIXME: links `soft/scripts` to `~` with name `soft`
             Command('ln -s {} {}'.format(dotfile.repo_location.full,
                                          dotfile.home_location.full_to_parent))()
+        Command('cd ~/.oh-my-zsh/custom/plugins/ && rmdir zsh-autosuggestions && git clone https://github.com/zsh-users/zsh-autosuggestions',
+            'Workaround for zsh-autosuggestions while git repos sync is not supported')
         for dconf in self.dconfs:
             dconf.load()
 
